@@ -10,6 +10,55 @@ This POC uses the **OAuth 2.0 Client Credentials Grant** (Machine-to-Machine) fl
 2. **API Gateway:** AWS API Gateway (HTTP API) configured with a JWT Authorizer.
 3. **Backend API:** `httpbin.org/get` acting as a mock backend to verify successful routing.
 
+### Architecture Diagram
+
+```mermaid
+flowchart LR
+    subgraph Client
+        A[API Consumer / Service]
+    end
+
+    subgraph OpenShift Cluster
+        direction TB
+        subgraph rhbk-namespace["Namespace: rhbk"]
+            KC[RHBK - Keycloak]
+            PG[(PostgreSQL DB)]
+        end
+        RT{{OpenShift Route\nEdge TLS}}
+    end
+
+    subgraph AWS
+        direction TB
+        APIGW[API Gateway\nHTTP API]
+        JWT{JWT Authorizer}
+        BACKEND[Backend Integration\nhttpbin.org/get]
+    end
+
+    A -- "1. POST /token\n(client_credentials)" --> RT
+    RT --> KC
+    KC <--> PG
+    KC -- "2. JWT Access Token" --> A
+
+    A -- "3. GET /test\nAuthorization: Bearer JWT" --> APIGW
+    APIGW --> JWT
+    JWT -- "4. Fetch JWKS from\nKeycloak OIDC endpoint" --> RT
+    JWT -- "5. Token Valid" --> APIGW
+    APIGW -- "6. Route to Backend" --> BACKEND
+    BACKEND -- "7. 200 OK + JSON" --> A
+```
+
+### Request Flow
+
+| Step | Description |
+|------|-------------|
+| 1 | Client requests an access token from RHBK using `client_credentials` grant |
+| 2 | RHBK validates credentials and returns a signed JWT with the `aud` claim |
+| 3 | Client calls AWS API Gateway with the JWT in the `Authorization` header |
+| 4 | AWS JWT Authorizer fetches the JWKS (public keys) from Keycloak's OIDC endpoint |
+| 5 | Authorizer validates the token signature, expiry, issuer, and audience |
+| 6 | On success, API Gateway routes the request to the backend integration |
+| 7 | Backend responds with `200 OK` and the response is returned to the client |
+
 ## Prerequisites
 
 * An OpenShift cluster with cluster-admin privileges.
