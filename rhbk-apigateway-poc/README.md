@@ -18,12 +18,91 @@ This POC uses the **OAuth 2.0 Client Credentials Grant** (Machine-to-Machine) fl
 
 ---
 
-## Step 1: Deploy RHBK on OpenShift
+## Step 1: Deploy PostgreSQL Database on OpenShift
+
+RHBK requires a persistent database backend. Deploy a PostgreSQL instance in the same namespace before creating the Keycloak CR.
+
+1. **Create the `rhbk` namespace** (if it doesn't already exist):
+
+```bash
+oc new-project rhbk
+```
+
+2. **Deploy PostgreSQL** using the following StatefulSet and Service:
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgresql-db
+  namespace: rhbk
+spec:
+  serviceName: postgresql-db-service
+  selector:
+    matchLabels:
+      app: postgresql-db
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: postgresql-db
+    spec:
+      containers:
+        - name: postgresql-db
+          image: postgres:latest
+          volumeMounts:
+            - mountPath: /data
+              name: cache-volume
+          env:
+            - name: POSTGRES_PASSWORD
+              value: keycloak
+            - name: POSTGRES_USER
+              value: keycloak
+            - name: PGDATA
+              value: /data/pgdata
+            - name: POSTGRES_DB
+              value: keycloak
+      volumes:
+        - name: cache-volume
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-db
+  namespace: rhbk
+spec:
+  selector:
+    app: postgresql-db
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+```
+
+3. **Create the database credentials secret** that the Keycloak CR will reference:
+
+```bash
+oc create secret generic keycloak-db-secret \
+  --from-literal=username=keycloak \
+  --from-literal=password=keycloak \
+  -n rhbk
+```
+
+4. **Verify the database pod is running:**
+
+```bash
+oc get pods -n rhbk -l app=postgresql-db
+```
+
+---
+
+## Step 2: Deploy RHBK on OpenShift
 
 1. Log into the OpenShift Web Console.
 2. Navigate to **OperatorHub**, search for **Red Hat Build of Keycloak**, and install the Operator.
 3. Once installed, create a `Keycloak` instance using the following custom resource (CR).
-   *(Note: The `additionalOptions` are critical when using OpenShift Edge TLS termination so Keycloak generates HTTPS URLs for AWS).*
+   *(Note: The `additionalOptions` are critical when using OpenShift Edge TLS termination so Keycloak generates HTTPS URLs for AWS. The `db` section connects RHBK to the PostgreSQL instance deployed in Step 1.)*
 
 ```yaml
 apiVersion: k8s.keycloak.org/v2alpha1
@@ -33,9 +112,23 @@ metadata:
   namespace: rhbk
 spec:
   instances: 1
+  db:
+    vendor: postgres
+    host: postgres-db
+    usernameSecret:
+      name: keycloak-db-secret
+      key: username
+    passwordSecret:
+      name: keycloak-db-secret
+      key: password
   hostname:
     hostname: <YOUR_OPENSHIFT_ROUTE_URL>  # e.g., keycloak-rhbk.apps.mycluster.com
     strict: true
+  http:
+    httpEnabled: true
+  ingress:
+    className: openshift-default
+    enabled: true
   additionalOptions:
     - name: proxy
       value: edge
@@ -51,7 +144,7 @@ spec:
 
 ---
 
-## Step 2: Configure Keycloak
+## Step 3: Configure Keycloak
 
 1. Log into the Keycloak Admin Console using the HTTPS URL and admin credentials.
 
@@ -75,7 +168,7 @@ spec:
 
 ---
 
-## Step 3: Configure AWS API Gateway
+## Step 4: Configure AWS API Gateway
 
 1. Log into the AWS Console and navigate to **API Gateway**.
 
@@ -99,7 +192,7 @@ spec:
 
 ---
 
-## Step 4: End-to-End Validation
+## Step 5: End-to-End Validation
 
 ### Test 1: Verify API Gateway Blocks Unauthorized Traffic
 
@@ -141,4 +234,4 @@ curl -i -H "Authorization: Bearer <PASTE_YOUR_ACCESS_TOKEN_HERE>" https://<YOUR_
 
 - **Token Automation:** In a production scenario, backend services will not use manual `curl` commands. They will utilize standard HTTP interceptor libraries (e.g., Spring Security, Python `requests-oauthlib`) to automatically cache, inject, and refresh tokens before making calls to AWS.
 
-- **Databases:** The RHBK OpenShift instance should be backed by an external PostgreSQL database (e.g., AWS RDS) rather than ephemeral pod storage.
+- **Databases:** This POC uses an `emptyDir` volume for PostgreSQL. For production, replace it with a PersistentVolumeClaim (PVC) or use a managed database service (e.g., AWS RDS) for data durability.
