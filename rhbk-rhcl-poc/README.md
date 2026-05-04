@@ -62,15 +62,9 @@ flowchart LR
 
 ---
 
-## Step 1: Install Core Dependencies (Gateway API & Operators)
+## Step 1: Install Required Operators
 
-By default, the Kubernetes Gateway API CRDs are not installed on older OpenShift clusters. Install them first:
-
-```bash
-oc apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.0.0/standard-install.yaml
-```
-
-Then install the required Operators from **OperatorHub**:
+Install the following Operators from **OperatorHub**:
 
 1. **Red Hat Build of Keycloak**
 2. **Red Hat OpenShift Service Mesh 3**
@@ -78,7 +72,44 @@ Then install the required Operators from **OperatorHub**:
 
 ---
 
-## Step 2: Deploy PostgreSQL Database on OpenShift
+## Step 2: Install Kubernetes Gateway API CRDs (OpenShift 4.18 and earlier)
+
+Red Hat Connectivity Link and OpenShift Service Mesh 3 rely entirely on the modern Kubernetes Gateway API standard for routing, rather than the legacy OpenShift Route or Kubernetes Ingress objects.
+
+> **Version Note:**
+> - **OpenShift 4.19+:** The Gateway API CRDs are natively installed and managed by the default OpenShift Ingress Operator. You can **skip this step**.
+> - **OpenShift 4.18 and older:** The Gateway API CRDs are **not** installed by default. You must install the standard upstream CRDs manually after deploying the operators above.
+
+**1. Apply the upstream standard CRDs:**
+
+Run the following command to pull the official v1.0.0 CRDs from the Kubernetes SIGs repository and apply them to your cluster.
+
+```bash
+oc apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.0.0/standard-install.yaml
+```
+
+**2. Verify the installation:**
+
+Wait a few seconds, then confirm that the cluster now recognizes the new Gateway API resource types.
+
+```bash
+oc get crd | grep gateway.networking.k8s.io
+```
+
+**Expected Output:**
+
+```
+gatewayclasses.gateway.networking.k8s.io         2026-05-04T16:00:00Z
+gateways.gateway.networking.k8s.io               2026-05-04T16:00:00Z
+httproutes.gateway.networking.k8s.io             2026-05-04T16:00:00Z
+referencegrants.gateway.networking.k8s.io        2026-05-04T16:00:00Z
+```
+
+Once verified, you are ready to deploy RHBK and the Service Mesh control plane.
+
+---
+
+## Step 3: Deploy PostgreSQL Database on OpenShift
 
 RHBK requires a persistent database backend. Deploy a PostgreSQL instance in the same namespace before creating the Keycloak CR.
 
@@ -157,12 +188,12 @@ oc get pods -n rhbk -l app=postgresql-db
 
 ---
 
-## Step 3: Deploy RHBK on OpenShift
+## Step 4: Deploy RHBK on OpenShift
 
 1. Log into the OpenShift Web Console.
 2. Navigate to **OperatorHub**, search for **Red Hat Build of Keycloak**, and install the Operator.
 3. Once installed, create a `Keycloak` instance using the following custom resource (CR).
-   *(Note: The `additionalOptions` are critical when using OpenShift Edge TLS termination so Keycloak generates HTTPS URLs. The `db` section connects RHBK to the PostgreSQL instance deployed in Step 2.)*
+   *(Note: The `additionalOptions` are critical when using OpenShift Edge TLS termination so Keycloak generates HTTPS URLs. The `db` section connects RHBK to the PostgreSQL instance deployed in Step 3.)*
 
 ```yaml
 apiVersion: k8s.keycloak.org/v2alpha1
@@ -204,7 +235,7 @@ spec:
 
 ---
 
-## Step 4: Configure Keycloak
+## Step 5: Configure Keycloak
 
 Log into the Keycloak Admin Console using the HTTPS URL and admin credentials.
 
@@ -216,7 +247,7 @@ Log into the Keycloak Admin Console using the HTTPS URL and admin credentials.
 
 ---
 
-## Step 5: Initialize the Service Mesh & Kuadrant Control Planes
+## Step 6: Initialize the Service Mesh & Kuadrant Control Planes
 
 Create the namespaces required by the Service Mesh 3 (Istio) architecture:
 
@@ -256,7 +287,7 @@ Wait ~60 seconds to ensure the `istiod` and `authorino` pods are running in thei
 
 ---
 
-## Step 6: Deploy the Target Application
+## Step 7: Deploy the Target Application
 
 Create a project for your API and deploy the backend.
 
@@ -305,7 +336,7 @@ EOF
 
 ---
 
-## Step 7: Configure the Gateway and Routing
+## Step 8: Configure the Gateway and Routing
 
 Create the Kubernetes Gateway and HTTPRoute.
 
@@ -363,7 +394,7 @@ oc expose svc poc-gateway-istio --hostname=api-poc.<YOUR_OPENSHIFT_DOMAIN> --por
 
 ---
 
-## Step 8: Secure the API with Kuadrant AuthPolicy
+## Step 9: Secure the API with Kuadrant AuthPolicy
 
 Attach a policy to the HTTPRoute instructing Kuadrant to reject any request that lacks a valid token from Keycloak:
 
@@ -391,7 +422,7 @@ EOF
 
 ---
 
-## Step 9: End-to-End Validation
+## Step 10: End-to-End Validation
 
 ### Test 1: Verify the API is Locked
 
