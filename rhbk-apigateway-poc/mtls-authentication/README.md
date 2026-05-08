@@ -2,7 +2,7 @@
 
 This repository contains the documentation and steps for a hybrid-cloud Proof of Concept (POC). It demonstrates how to secure an AWS API Gateway (HTTP API) using JSON Web Tokens (JWT) issued by a **Red Hat Build of Keycloak (RHBK)** instance hosted on OpenShift.
 
-By utilizing **Mutual TLS (mTLS) Client Authentication** (`tls_client_auth`), this architecture replaces traditional shared secrets (`client_secret`) with a robust, cryptography-based authentication flow for **Machine-to-Machine (M2M)** communication, fully complying with [RFC 8705](https://datatracker.ietf.org/doc/html/rfc8705).
+By utilizing **Mutual TLS (mTLS) Client Authentication** (`tls_client_auth`), this architecture replaces the traditional `client_secret` approach — where both the client and the server must store the same secret — with a robust, cryptography-based authentication flow for **Machine-to-Machine (M2M)** communication, fully complying with [RFC 8705](https://datatracker.ietf.org/doc/html/rfc8705). With mTLS, the private key exists only on the client side; the server never holds a copy of it.
 
 ---
 
@@ -82,7 +82,7 @@ To satisfy AWS API Gateway's strict requirement for publicly trusted Issuer URLs
 ### 1. Extract the valid OpenShift Wildcard Certificate (For the RHBK Server)
 
 ```bash
-# Extracts the valid OpenTLC router certs to your local directory
+# Extracts the valid OpenShift wildcard router certs to your local directory
 oc extract secret/router-certs-default -n openshift-ingress --keys=tls.crt,tls.key --to=.
 ```
 
@@ -181,7 +181,7 @@ Following [Red Hat KCS 7057715](https://access.redhat.com/solutions/7057715), we
 ### 1. Create Kubernetes Secrets for Certificates and Truststore
 
 ```bash
-# Upload the valid OpenTLC Server Certs
+# Upload the valid OpenShift Server Certs
 oc create secret tls rhbk-tls-poc-secret --cert=tls.crt --key=tls.key -n rhbk
 
 # Upload the Truststore file
@@ -214,7 +214,7 @@ spec:
       name: keycloak-db-poc-secret
       key: password
   hostname:
-    hostname: <YOUR_OPENSHIFT_ROUTE_URL>  # e.g., rhbk.apps...opentlc.com
+    hostname: <YOUR_OPENSHIFT_ROUTE_URL>  # e.g., rhbk.apps.mycluster.example.com
     strict: true
   http:
     tlsSecret: rhbk-tls-poc-secret
@@ -343,4 +343,4 @@ curl -i -H "Authorization: Bearer <PASTE_YOUR_ACCESS_TOKEN_HERE>" https://<YOUR_
 
 - **Certificate Rotation:** Implement automated certificate rotation using tools like cert-manager to ensure client certificates are renewed before expiry.
 
-- **mTLS vs. Client Secret:** The `tls_client_auth` method eliminates the risk of secret leakage in logs, environment variables, or configuration files. During the mTLS handshake, the private key is used **locally** to sign a cryptographic challenge — it is never transmitted over the network. Only the public certificate is sent to the server, making this approach significantly more secure for M2M workloads.
+- **mTLS vs. Client Secret:** With the traditional `client_secret` approach, the secret is a plain text string that must be stored in configuration files, environment variables, or passed in HTTP POST bodies — any of which can accidentally end up in application logs, shell history, or proxy traces. The `tls_client_auth` method eliminates this class of risk entirely: there is no secret string to leak. Authentication happens at the TLS layer using the client's private key, which stays on disk as a file and is never included in HTTP requests. Even if the full HTTP traffic is captured, no credential will be found in it — the mutual authentication already completed before any application data was exchanged.
