@@ -68,7 +68,7 @@ flowchart LR
 
 ## Prerequisites
 
-- An OpenShift cluster (e.g., OpenTLC Sandbox) with cluster-admin privileges.
+- An OpenShift cluster with cluster-admin privileges.
 - An AWS Account with permissions to create API Gateways.
 - The `oc`, `curl`, `openssl`, and `keytool` CLI tools installed locally.
 - The `rhbk` namespace already created on your cluster.
