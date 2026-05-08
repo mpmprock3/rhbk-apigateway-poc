@@ -1,0 +1,18 @@
+# Private keys
+*.key
+
+# Certificate signing requests
+*.csr
+
+# Certificate serial files
+*.srl
+
+# Java keystores
+*.jks
+
+# TLS certificates (generated per-environment)
+tls.crt
+tls.key
+
+# OS files
+.DS_Store

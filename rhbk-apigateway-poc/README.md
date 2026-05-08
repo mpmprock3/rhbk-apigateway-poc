@@ -284,3 +284,11 @@ curl -i -H "Authorization: Bearer <PASTE_YOUR_ACCESS_TOKEN_HERE>" https://<YOUR_
 - **Token Automation:** In a production scenario, backend services will not use manual `curl` commands. They will utilize standard HTTP interceptor libraries (e.g., Spring Security, Python `requests-oauthlib`) to automatically cache, inject, and refresh tokens before making calls to AWS.
 
 - **Databases:** This POC uses an `emptyDir` volume for PostgreSQL. For production, replace it with a PersistentVolumeClaim (PVC) or use a managed database service (e.g., AWS RDS) for data durability.
+
+---
+
+## mTLS Client Authentication (`tls_client_auth`)
+
+For a more secure, certificate-based authentication flow that eliminates shared secrets entirely, see the **[mTLS Authentication POC](./mtls-authentication/)**.
+
+This variant uses X.509 client certificates instead of `client_secret`, fully complying with [RFC 8705](https://datatracker.ietf.org/doc/html/rfc8705). It includes fixes for the OpenTLC wildcard certificate (to satisfy AWS API Gateway's strict PKI requirements) and the Audience Mapper configuration.
