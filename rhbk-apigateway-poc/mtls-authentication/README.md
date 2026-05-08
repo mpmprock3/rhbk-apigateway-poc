@@ -319,6 +319,8 @@ curl -s -X POST 'https://<YOUR_OPENSHIFT_ROUTE_URL>/realms/aws-poc-realm/protoco
   -d "grant_type=client_credentials"
 ```
 
+> **Note:** The `--cert` and `--key` flags are **local file references** used by `curl` to perform the TLS handshake on your machine. The private key is **never transmitted** over the network — `curl` uses it locally to sign a cryptographic challenge during the mTLS handshake, proving possession of the key. Only the public certificate is sent to the server.
+
 Copy the resulting `"access_token"` string.
 
 ### Test 2: Access API Gateway Successfully
@@ -341,4 +343,4 @@ curl -i -H "Authorization: Bearer <PASTE_YOUR_ACCESS_TOKEN_HERE>" https://<YOUR_
 
 - **Certificate Rotation:** Implement automated certificate rotation using tools like cert-manager to ensure client certificates are renewed before expiry.
 
-- **mTLS vs. Client Secret:** The `tls_client_auth` method eliminates the risk of secret leakage in logs, environment variables, or configuration files. The private key never leaves the client, making this approach significantly more secure for M2M workloads.
+- **mTLS vs. Client Secret:** The `tls_client_auth` method eliminates the risk of secret leakage in logs, environment variables, or configuration files. During the mTLS handshake, the private key is used **locally** to sign a cryptographic challenge — it is never transmitted over the network. Only the public certificate is sent to the server, making this approach significantly more secure for M2M workloads.
