@@ -382,7 +382,7 @@ spec:
 EOF
 ```
 
-> Replace `<YOUR_OPENSHIFT_DOMAIN>` with your cluster's apps domain (e.g., `apps.ocp.n4z5m.sandbox1285.opentlc.com`).
+> Replace `<YOUR_OPENSHIFT_DOMAIN>` with your cluster's apps domain (e.g., `apps.example.com`).
 
 **Expose the Gateway to the Public Internet:**
 
