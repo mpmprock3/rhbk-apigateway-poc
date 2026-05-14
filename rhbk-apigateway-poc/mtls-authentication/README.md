@@ -277,7 +277,15 @@ oc extract secret/rhbk-poc-instance-initial-admin --to=- -n rhbk
    - Set **Client Authenticator** to `X509 Certificate`.
    - **Subject DN:** `CN=aws-api-client`
 
-5. **Create the Audience Mapper** (Critical for AWS API Gateway Validation):
+5. **Enable Certificate-Bound Access Tokens:**
+   - Navigate to the client's **Advanced** tab.
+   - Scroll to the **Advanced settings** section.
+   - Set **OAuth 2.0 Mutual TLS Certificate Bound Access Tokens Enabled** to **ON**.
+   - Click **Save**.
+
+   > This setting binds each issued access token to the client's TLS certificate by embedding the certificate thumbprint (`x5t#S256`) in the token's `cnf` (confirmation) claim, as defined in [RFC 8705 Section 3](https://datatracker.ietf.org/doc/html/rfc8705#section-3). A resource server can then verify that the presenter of the token is the same entity that originally authenticated — preventing stolen tokens from being replayed by a different client.
+
+6. **Create the Audience Mapper** (Critical for AWS API Gateway Validation):
    - Go to the **Client scopes** tab -> Click `aws-api-client-dedicated`.
    - Click **Add mapper > Configure a new mapper > Audience**.
    - **Name:** `aws-audience-mapper`

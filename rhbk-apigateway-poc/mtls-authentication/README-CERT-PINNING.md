@@ -242,9 +242,14 @@ oc patch route rhbk-pinned-instance -n rhbk \
        "client_name": "Dynamically Registered Pinned Client",
        "token_endpoint_auth_method": "tls_client_auth",
        "grant_types": ["client_credentials"],
-       "tls_client_auth_subject_dn": "CN=aws-api-client-pinned"
+       "tls_client_auth_subject_dn": "CN=aws-api-client-pinned",
+       "tls_client_certificate_bound_access_tokens": true
      }'
    ```
+
+   > The `tls_client_certificate_bound_access_tokens` field enables **OAuth 2.0 Mutual TLS Certificate Bound Access Tokens** ([RFC 8705 Section 3](https://datatracker.ietf.org/doc/html/rfc8705#section-3)). When enabled, every access token issued to this client will contain a `cnf` (confirmation) claim with the certificate's SHA-256 thumbprint (`x5t#S256`). A resource server can then verify that the token presenter holds the same certificate — a stolen token is useless without the matching private key.
+   >
+   > If registering the client manually via the Admin Console instead of DCR, navigate to the client's **Advanced** tab -> **Advanced settings** -> set **OAuth 2.0 Mutual TLS Certificate Bound Access Tokens Enabled** to **ON**.
 
 > **Note:** Save the `client_id` (UUID) returned in the JSON response.
 

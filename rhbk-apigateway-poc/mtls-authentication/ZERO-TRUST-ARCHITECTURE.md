@@ -120,7 +120,7 @@ sequenceDiagram
 
 | Pillar | Mechanism | Benefit |
 |--------|-----------|---------|
-| **Authentication** | Mutual TLS (`tls_client_auth`) | Replaces vulnerable shared passwords (`client_secret`) with transport-layer cryptographic proof using X.509 certificates. Compliant with [RFC 8705](https://datatracker.ietf.org/doc/html/rfc8705). |
+| **Authentication** | Mutual TLS (`tls_client_auth`) | Replaces vulnerable shared passwords (`client_secret`) with transport-layer cryptographic proof using X.509 certificates. Certificate-bound access tokens (`cnf` / `x5t#S256`) prevent token theft and replay. Compliant with [RFC 8705](https://datatracker.ietf.org/doc/html/rfc8705). |
 | **Centralized Authorization** | UMA 2.0 (User-Managed Access) | Access rules are removed from backend code and API Gateways. Keycloak centrally manages policies and issues a Requesting Party Token (RPT) only if all security conditions are met. |
 | **Decoupled Enforcement** | JWT Signature Validation | AWS API Gateway simply validates the RPT signature. If Keycloak denies authorization, the request never reaches the AWS cloud. |
 
@@ -375,7 +375,19 @@ Navigate to the **Credentials** tab:
 | Client Authenticator | `X509 Certificate` |
 | Subject DN | `CN=aws-api-client` |
 
-**3. Create the Audience Mapper**
+**3. Enable Certificate-Bound Access Tokens**
+
+Navigate to the **Advanced** tab -> scroll to **Advanced settings**:
+
+| Setting | Value |
+|---------|-------|
+| OAuth 2.0 Mutual TLS Certificate Bound Access Tokens Enabled | **ON** |
+
+Click **Save**.
+
+> This binds each access token to the client's TLS certificate by embedding the certificate's SHA-256 thumbprint (`x5t#S256`) in the token's `cnf` (confirmation) claim, as defined in [RFC 8705 Section 3](https://datatracker.ietf.org/doc/html/rfc8705#section-3). Resource servers can then verify that the entity presenting the token is the same entity that authenticated — a stolen token cannot be replayed from a different client without the corresponding private key.
+
+**4. Create the Audience Mapper**
 
 Navigate to **Client scopes** -> `aws-api-client-dedicated`:
 
